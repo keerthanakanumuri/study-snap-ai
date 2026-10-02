@@ -27,9 +27,9 @@ if "student_name" not in st.session_state:
 if "student_email" not in st.session_state:
     st.session_state.student_email = ""
 if "chat" not in st.session_state:
-    st.session_state.chat = None          # Gemini chat session
+    st.session_state.chat = None
 if "messages" not in st.session_state:
-    st.session_state.messages = []        # list of {"role", "content"}
+    st.session_state.messages = []
 if "image_analysed" not in st.session_state:
     st.session_state.image_analysed = False
 if "uploaded_image" not in st.session_state:
@@ -67,7 +67,6 @@ def show_onboarding():
             st.session_state.student_name = name.strip()
             st.session_state.student_email = email.strip()
             st.session_state.onboarded = True
-            # Start a Gemini multi-turn chat session
             st.session_state.chat = model.start_chat(history=[])
             st.rerun()
 
@@ -81,7 +80,7 @@ def show_chat():
     st.title("📸 SnapStudy")
     st.caption(f"Hi {name}! Upload a photo below to get started.")
 
-    # ── Image uploader (shown only until an image has been analysed) ──────────
+    # ── Image uploader ────────────────────────────────────────────────────────
     if not st.session_state.image_analysed:
         uploaded_file = st.file_uploader(
             "📷 Upload your photo (PNG, JPG, JPEG, WEBP)",
@@ -97,14 +96,9 @@ def show_chat():
                 with st.spinner("SnapStudy is reading your image…"):
                     try:
                         response = st.session_state.chat.send_message(
-                            [
-                                "Please explain this study material to me.",
-                                image,
-                            ]
+                            ["Please explain this study material to me.", image]
                         )
                         explanation = response.text
-
-                        # Store the image and the first exchange
                         st.session_state.uploaded_image = image
                         st.session_state.messages.append(
                             {"role": "user", "content": "📷 [Image uploaded]"}
@@ -122,15 +116,13 @@ def show_chat():
         with st.chat_message(msg["role"]):
             st.markdown(msg["content"])
 
-    # ── Follow-up chat input (shown after first image analysis) ───────────────
+    # ── Follow-up + actions ───────────────────────────────────────────────────
     if st.session_state.image_analysed:
         user_input = st.chat_input("Ask a follow-up question…")
         if user_input:
-            # Show the user message immediately
             st.session_state.messages.append({"role": "user", "content": user_input})
             with st.chat_message("user"):
                 st.markdown(user_input)
-
             with st.chat_message("assistant"):
                 with st.spinner("Thinking…"):
                     try:
@@ -143,23 +135,20 @@ def show_chat():
                     except Exception as e:
                         st.error(f"Gemini error: {e}")
 
-        # ── Send to email button ──────────────────────────────────────────────
         st.divider()
         st.markdown("### 📩 Save your study notes")
         st.write(
-            f"Click below to email a clean summary of this explanation to "
+            f"Click below to email a clean summary to "
             f"**{st.session_state.student_email}**."
         )
 
         if st.button("📧 Send Study Notes to My Email"):
             with st.spinner("Generating summary and sending email…"):
                 try:
-                    # Ask Gemini to write the formatted study note
                     summary_response = st.session_state.chat.send_message(
                         EMAIL_SUMMARY_PROMPT
                     )
                     summary_text = summary_response.text
-
                     send_email(
                         to_address=st.session_state.student_email,
                         subject=f"SnapStudy Notes for {st.session_state.student_name}",
@@ -172,10 +161,8 @@ def show_chat():
                 except Exception as e:
                     st.error(f"Could not send email: {e}")
 
-        # ── Start over button ─────────────────────────────────────────────────
         st.divider()
         if st.button("🔄 Start Over (upload a new image)"):
-            # Keep name and email, reset everything else
             st.session_state.chat = model.start_chat(history=[])
             st.session_state.messages = []
             st.session_state.image_analysed = False
